@@ -79,6 +79,30 @@ def test_read_budget():
     assert result["truncated"] and len(result["preview"].encode()) <= 128
 
 
+def test_note_pages_reach_tail_and_search_match(environment):
+    data, config, credentials, token = environment
+    text = ('Unicode \"\\ 雪 ' * 150) + "late-note-sentinel"
+    atomic_write(data / "obsidian/Projects/alpha/long.md", text.encode())
+    with TestClient(create_app(data, config, credentials)) as client:
+        offset, pages, hashes = 0, [], set()
+        while True:
+            result = rpc(client, token, "note_read", {"project": "alpha", "path": "long.md", "offset": offset, "token_budget": 128})
+            assert not result.get("isError"), result
+            page = json.loads(result["content"][0]["text"])
+            assert len(json.dumps(page["data"], ensure_ascii=False).encode()) <= 128
+            pages.append(page["data"])
+            hashes.add(page["sha256"])
+            if page["next_offset"] is None:
+                break
+            assert page["next_offset"] > offset
+            offset = page["next_offset"]
+        assert "".join(pages) == text
+        assert len(hashes) == 1
+    assert "late-note-sentinel" in ContextStore(data, config).search_notes("alpha", "late-note-sentinel", 1)[0]["excerpt"]
+    atomic_write(data / "obsidian/Projects/alpha/folded.md", ('ß' * 1000 + ' unicode-tail-sentinel').encode())
+    assert "unicode-tail-sentinel" in ContextStore(data, config).search_notes("alpha", "unicode-tail-sentinel", 1)[0]["excerpt"]
+
+
 def test_concurrent_note_updates_preserve_one_winner(environment):
     data, config, credentials, token = environment
     store = ContextStore(data, config)
@@ -99,6 +123,8 @@ def test_real_graphify_index_traversal_refresh(environment):
     repo.mkdir(parents=True)
     (repo / "sample.py").write_text("def helper():\n    return 1\n\ndef caller():\n    return helper()\n")
     (repo / ".env").write_text("def secret_sentinel(): pass")
+    (repo / ".secrets").mkdir()
+    (repo / ".secrets/private.py").write_text("def private_sentinel(): pass")
     index(config, data, "alpha")
     store = ContextStore(data, config)
     result = store.graph_query("alpha", "caller", 2, 20)
@@ -106,6 +132,7 @@ def test_real_graphify_index_traversal_refresh(environment):
     assert any("helper" in n.get("label", "") for n in result["nodes"])
     assert result["edges"]
     assert "secret_sentinel" not in (data / "graphs/alpha/graph.json").read_text()
+    assert "private_sentinel" not in (data / "graphs/alpha/graph.json").read_text()
     with pytest.raises(FileNotFoundError):
         store.graph_query("beta", "caller", 1, 20)
     (repo / "sample.py").write_text("def refreshed_symbol():\n    return 2\n")

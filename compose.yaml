@@ -1,9 +1,10 @@
 name: ai-context
 x-runtime: &runtime
-  image: ai-context-nas:0.1.0
+  image: joweenflores/ai-context-nas:0.1.0-${CONTEXT_VARIANT:-slim}
   build:
     context: .
     dockerfile: gateway/Dockerfile
+    target: ${CONTEXT_VARIANT:-slim}
   user: "${PUID:-10001}:${PGID:-10001}"
   init: true
   read_only: true
@@ -42,7 +43,7 @@ services:
       retries: 3
       start_period: 20s
   tls:
-    image: ai-context-tls:0.1.0
+    image: joweenflores/ai-context-tls:0.1.0
     build:
       context: .
       dockerfile: gateway/Caddy.Dockerfile
@@ -72,6 +73,11 @@ services:
       options: {max-size: 10m, max-file: "3"}
   indexer:
     <<: *runtime
+    image: joweenflores/ai-context-nas:0.1.0-standard
+    build:
+      context: .
+      dockerfile: gateway/Dockerfile
+      target: standard
     profiles: [operations]
     restart: "no"
     command: [python, -m, scripts.manage, index, --project, example]
@@ -79,6 +85,7 @@ services:
     volumes:
       - ${DATA_ROOT:-./runtime}/graphs:/data/graphs
       - ${DATA_ROOT:-./runtime}/repositories:/data/repositories:ro
+      - ${DATA_ROOT:-./runtime}/.operator:/data/.operator
       - ./config:/config:ro
     network_mode: none
     mem_limit: 2g

@@ -29,14 +29,21 @@ jobs:
         run: docker compose --env-file .env.example config --quiet
       - name: Build Linux ARM64 image and verify ICM executable
         run: |
-          docker build -t ai-context-nas:0.1.0 -f gateway/Dockerfile .
-          docker build -t ai-context-tls:0.1.0 -f gateway/Caddy.Dockerfile .
-          docker run --rm --network none ai-context-nas:0.1.0 icm --version
+          docker build --target standard -t joweenflores/ai-context-nas:0.1.0-standard -f gateway/Dockerfile .
+          docker build --target slim -t joweenflores/ai-context-nas:0.1.0-slim -f gateway/Dockerfile .
+          docker build -t joweenflores/ai-context-tls:0.1.0 -f gateway/Caddy.Dockerfile .
+          docker run --rm --network none joweenflores/ai-context-nas:0.1.0-slim icm --version
+          docker run --rm --network none joweenflores/ai-context-nas:0.1.0-standard git --version
       - name: Start Compose and verify private HTTPS
         run: |
           python -m scripts.manage init --uid "$(id -u)" --gid "$(id -g)"
           python -m scripts.manage register --project smoke
           python -m scripts.manage client --name ci --projects smoke --write
+          mkdir -p runtime/repositories/smoke/.secrets
+          printf "def indexed_sentinel(): pass\n" > runtime/repositories/smoke/sample.py
+          printf "def private_sentinel(): pass\n" > runtime/repositories/smoke/.secrets/private.py
+          docker compose --profile operations run --rm --no-deps indexer python -m scripts.manage index --project smoke
+          python -c "from gateway.core import ContextStore; from pathlib import Path; s=ContextStore(Path('runtime'),Path('config')); assert 'indexed_sentinel' in str(s.graph_query('smoke','indexed_sentinel',1,20)); assert 'private_sentinel' not in Path('runtime/graphs/smoke/graph.json').read_text()"
           docker compose up --no-build -d --wait --wait-timeout 90
           curl --retry 10 --retry-connrefused --retry-delay 1 --fail --silent --show-error --noproxy '*' --cacert runtime/tls/caddy/pki/authorities/local/root.crt --resolve context.nas.internal:8443:127.0.0.1 https://context.nas.internal:8443/health
           echo '127.0.0.1 context.nas.internal' | sudo tee -a /etc/hosts
@@ -47,7 +54,7 @@ jobs:
       - name: Export verified ARM64 images
         run: |
           mkdir -p bundle
-          docker save ai-context-nas:0.1.0 ai-context-tls:0.1.0 | gzip -1 > bundle/ai-context-arm64.tar.gz
+          docker save joweenflores/ai-context-nas:0.1.0-slim joweenflores/ai-context-nas:0.1.0-standard joweenflores/ai-context-tls:0.1.0 | gzip -1 > bundle/ai-context-arm64.tar.gz
           sha256sum bundle/ai-context-arm64.tar.gz > bundle/SHA256SUMS
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
@@ -55,6 +62,16 @@ jobs:
           path: bundle/
           retention-days: 1
           compression-level: 0
+      - name: Verify standard runtime persistence
+        run: |
+          CONTEXT_VARIANT=standard docker compose up --no-build -d --wait --wait-timeout 90 gateway
+          python -m scripts.smoke --project smoke --ca runtime/tls/caddy/pki/authorities/local/root.crt --credentials .secrets/ci.env --recall-only
+      - name: Verify maintenance backup and staging restore
+        run: |
+          docker compose stop tls gateway
+          docker compose --profile operations run --rm --no-deps maintenance python -m scripts.manage backup --destination /backups
+          archive=$(basename "$(find backups -name 'context-*.tar.gz' | head -1)")
+          docker compose --profile operations run --rm --no-deps maintenance python -m scripts.manage restore --archive "/backups/$archive" --target /data/recovery-check
       - name: Container diagnostics and cleanup
         if: always()
         run: |

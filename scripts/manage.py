@@ -14,6 +14,8 @@ import sqlite3
 import subprocess
 import tarfile
 import tempfile
+import sys
+import importlib.util
 
 from gateway.core import atomic_write, confined, slug
 
@@ -26,7 +28,9 @@ def registry(config):
 def operation(data):
     """Exclude simultaneous index/backup/import/restore operator jobs."""
     data.mkdir(parents=True, exist_ok=True)
-    path = data / ".operator.lock"
+    locks = data / ".operator"
+    locks.mkdir(exist_ok=True)
+    path = locks / "operation.lock"
     fd = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
     try:
         os.write(fd, str(os.getpid()).encode())
@@ -44,7 +48,7 @@ def initialize(root: Path, data: Path, uid: int, gid: int):
         raise ValueError("Existing nonempty folder is not an initialized AI context data root")
     data.mkdir(parents=True, exist_ok=True)
     marker.touch(exist_ok=True)
-    for item in ("graphs", "icm", "repositories", "tls", "obsidian"):
+    for item in ("graphs", "icm", "repositories", "tls", "obsidian", ".operator"):
         (data / item).mkdir(exist_ok=True)
     for item in ("Projects", "Architecture", "Decisions", "Development", "Infrastructure", "Runbooks", "Archive", "Templates"):
         (data / "obsidian" / item).mkdir(exist_ok=True)
@@ -114,6 +118,8 @@ def client(root: Path, config: Path, name: str, projects: list[str], write: bool
 
 
 def sync(config: Path, data: Path, project: str):
+    if not shutil.which("git"):
+        raise ValueError("Repository sync requires the standard image (Git is not installed)")
     slug(project)
     item = registry(config)["projects"][project]
     if not item["url"]:
@@ -153,6 +159,8 @@ def validate_graph(path: Path):
 
 
 def index(config: Path, data: Path, project: str):
+    if importlib.util.find_spec("graphify") is None:
+        raise ValueError("Indexing requires the standard image; slim serves imported graphs")
     slug(project)
     registry(config)["projects"][project]
     source = data / "repositories" / project
@@ -165,7 +173,7 @@ def index(config: Path, data: Path, project: str):
         # cannot be reached by the parser. The original clone is read-only.
         with tempfile.TemporaryDirectory(prefix=".index-", dir=out.parent) as temp:
             clean = Path(temp) / "source"
-            ignore = shutil.ignore_patterns(".git", "node_modules", "vendor", "dist", "build", ".venv", "venv",
+            ignore = shutil.ignore_patterns(".git", ".secrets", ".ssh", ".aws", ".azure", ".config", ".kube", "node_modules", "vendor", "dist", "build", ".venv", "venv",
                                             ".env*", "*.pem", "*.key", "credentials*", "secrets*", "__pycache__")
             def safe_ignore(folder, names):
                 return set(ignore(folder, names)) | {name for name in names if (Path(folder) / name).is_symlink()}
@@ -173,7 +181,7 @@ def index(config: Path, data: Path, project: str):
             # Reuse previous output/manifest for native incremental extraction.
             staged = Path(temp) / "output" / "graphify-out"
             shutil.copytree(out, staged, dirs_exist_ok=True)
-            subprocess.run(["graphify", "extract", str(clean), "--code-only", "--no-cluster",
+            subprocess.run([sys.executable, "-m", "graphify", "extract", str(clean), "--code-only", "--no-cluster",
                             "--out", str(staged.parent), "--max-workers", "2"], check=True, timeout=1800)
             graph = staged / "graph.json"
             parsed = validate_graph(graph)
@@ -220,7 +228,7 @@ def backup(config: Path, data: Path, backups: Path, keep: int):
                 shutil.copytree(data / folder, stage / folder, symlinks=False)
         shutil.copytree(config, stage / "config")
         deployment = Path(__file__).resolve().parent.parent
-        for name in ("compose.yaml", ".env.example", "pyproject.toml", "requirements.lock", "uv.lock",
+        for name in ("compose.yaml", ".env.example", "pyproject.toml", "requirements.lock", "requirements.slim.lock", "uv.lock", "LICENSE",
                      "gateway/Caddyfile", "gateway/Dockerfile", "gateway/Caddy.Dockerfile"):
             template = deployment / name
             if template.is_file():
@@ -234,8 +242,11 @@ def backup(config: Path, data: Path, backups: Path, keep: int):
                 source.backup(output)
                 if output.execute("PRAGMA integrity_check").fetchone()[0] != "ok":
                     raise ValueError("Database backup integrity failed")
-        manifest = {str(p.relative_to(stage)).replace("\\", "/"): hashlib.sha256(p.read_bytes()).hexdigest()
-                    for p in stage.rglob("*") if p.is_file()}
+        manifest = {}
+        for path in stage.rglob("*"):
+            if path.is_file():
+                with path.open("rb") as stream:
+                    manifest[path.relative_to(stage).as_posix()] = hashlib.file_digest(stream, "sha256").hexdigest()
         (stage / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
         partial = destination.with_suffix(".partial")
         try:
@@ -268,8 +279,9 @@ def restore(archive: Path, target: Path):
         source.extractall(target, filter="data")
     manifest = json.loads((target / "manifest.json").read_text())
     for name, expected in manifest.items():
-        if hashlib.sha256(confined(target, name).read_bytes()).hexdigest() != expected:
-            raise ValueError(f"Backup checksum mismatch: {name}")
+        with confined(target, name).open("rb") as stream:
+            if hashlib.file_digest(stream, "sha256").hexdigest() != expected:
+                raise ValueError(f"Backup checksum mismatch: {name}")
     for db in (target / "icm").glob("*/memory.db"):
         with closing(sqlite3.connect(db)) as conn:
             if conn.execute("PRAGMA integrity_check").fetchone()[0] != "ok":

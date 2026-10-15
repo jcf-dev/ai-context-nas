@@ -12,7 +12,7 @@
 | MCP client cannot initialize | Verify HTTPS trust, bearer environment, `/mcp`, JSON/Streamable HTTP support, and client-specific config. Legacy SSE clients need upgrading. Hermes may require `skip_preflight: true`. |
 | Graph missing or stale | Synchronize that project's clone, run its index job, inspect index.json, and query the new symbol. Imported commit provenance is unknown unless verified separately. |
 | Indexer runs out of memory/temp disk | Split the repository, tighten exclusions, or build artifacts on a development machine. Do not remove runtime limits without measuring available NAS resources. |
-| Operator lock exists | Confirm no index/import/backup/restore operator job is still running. Remove only the specific stale `.operator.lock` in your initialized data root after a crashed job. |
+| Operator lock exists | Confirm no index/import/backup/restore operator job is still running. Remove only the specific stale `.operator/operation.lock` in your initialized data root after a crashed job. |
 | Notes conflict | Read again and supply the new hash. Human-owned notes require a human editor. Coordinate SMB edits. |
 | Memory command fails | Check local permissions/free space, ICM binary compatibility, and SQLite integrity while the gateway is stopped. Never start a second writer to debug a live database. |
 | Backup restore fails | Preserve the archive, use a new empty staging root, verify checksum/integrity results, and restore an earlier archive if necessary. Never bypass path or database checks. |

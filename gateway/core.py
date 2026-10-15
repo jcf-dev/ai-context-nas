@@ -100,8 +100,16 @@ class ContextStore:
                 continue
             text = safe.read_text(encoding="utf-8")
             if query.casefold() in text.casefold():
+                # Center the excerpt on the match so late-note hits are useful.
+                folded_match = text.casefold().find(query.casefold())
+                folded_cursor = 0
+                for match, character in enumerate(text):
+                    folded_cursor += len(character.casefold())
+                    if folded_cursor > folded_match:
+                        break
+                start = max(0, match - 160)
                 hits.append({"source": f"vault://{project}/{path.relative_to(root).as_posix()}",
-                             "excerpt": text[:800]})
+                             "excerpt": text[start:start + 800]})
                 if len(hits) >= min(20, max(1, limit)):
                     break
         return hits

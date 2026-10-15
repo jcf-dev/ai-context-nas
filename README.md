@@ -4,9 +4,22 @@ Private, project-scoped context for Claude Code, Codex CLI, Hermes, and other MC
 
 **Status:** locally tested deployment project. NAS installation, actual NAS resource measurements, and remote client acceptance remain pending. See [validation](documentation/validation.md). Do not treat the initial repository publication as a completed NAS deployment.
 
+## Container editions
+
+Public images are published under `joweenflores/ai-context-nas` on Docker Hub. Release status and verified architecture/digests are recorded in [validation](documentation/validation.md); a tag is usable only after publication is confirmed.
+
+| Tag | Includes | Use |
+| --- | --- | --- |
+| `0.1.0-slim` | Authenticated MCP, graph artifact retrieval, Markdown, SQLite ICM, backup tools | Default persistent gateway; import or separately index graphs |
+| `0.1.0-standard` | Everything in slim plus Graphify AST parsers and Git | One-shot indexing, repository sync, or an all-in-one gateway |
+
+Both variants use the same data layout, authentication, and six MCP tools. Slim deliberately omits Graphify extraction and Git; it can query existing Graphify artifacts. Standard also uses a small Debian Python base; the edition difference is installed tools. TLS is a separate `joweenflores/ai-context-tls:0.1.0` image. Upstream components retain their own licenses; MIT covers this project's code.
+
+After preparing folders, use `docker compose up --no-build --pull always -d gateway tls` to pull images. Compose defaults to slim for gateway/maintenance and standard for the operations indexer. To run the standard gateway, set `CONTEXT_VARIANT=standard` in `.env`. Pin release digests for repeatable deployments. Local builds remain available with `docker compose --profile operations build`.
+
 ## What runs
 
-Two persistent containers: a small Python MCP gateway and Caddy for private HTTPS. The gateway reads real Graphify artifacts and invokes the real ICM CLI, serializing access to a separate SQLite database for each project. Graphify indexing is a short-lived operator job. The Obsidian vault is ordinary Markdown on the NAS; open it using Obsidian Desktop over an authenticated SMB share.
+Two persistent containers: the slim Python MCP gateway and Caddy for private HTTPS. The gateway reads real Graphify artifacts and invokes the real ICM CLI, serializing access to a separate SQLite database for each project. Graphify indexing is a short-lived operator job. The Obsidian vault is ordinary Markdown on the NAS; open it using Obsidian Desktop over an authenticated SMB share.
 
 The gateway is useful here because native Graphify MCP does not provide the restricted vault tools or the combined project access policy. It exposes six tools: `graph_query`, `note_search`, `note_read`, `note_write`, `memory_recall`, and `memory_store`. Hermes is a separate client/container. No embeddings, vector service, extra memory database, Docker socket, or privileged containers are needed.
 
@@ -22,7 +35,7 @@ The machine used to prepare this repo had SMB mappings to `10.10.10.2`; an SSH a
 
 ## 2. Prepare the project folder
 
-Clone this private repository using your GitHub account. Keep live data out of Git. You can prepare the folder on Windows, then transfer it using the UGREEN app, or prepare it directly on the NAS.
+Clone this public repository. Contributions are welcome under the [MIT license](LICENSE); see [CONTRIBUTING.md](CONTRIBUTING.md). Keep live data out of Git. You can prepare the folder on Windows, then transfer it using the UGREEN app, or prepare it directly on the NAS.
 
 This preparation requires Python 3.12 and the locked dependencies. On a machine with Python and `uv`:
 
@@ -69,7 +82,7 @@ The default bind address is loopback. Deliberately set the NAS's private IP afte
 
    ```sh
    docker compose config --quiet
-   docker compose build gateway tls
+   docker compose --profile operations build gateway tls indexer
    docker compose up -d gateway tls
    docker compose ps
    docker compose logs --tail 50 gateway tls
@@ -100,7 +113,7 @@ docker compose --profile operations run --rm --no-deps indexer python -m scripts
 
 If the host has no Python, prepare/synchronize the clone on a trusted development machine and copy it into `runtime/repositories/myapp`, then run the indexer on the NAS. Never mount an arbitrary PC repository path on the NAS expecting it to exist. Do not embed GitHub tokens in clone URLs. Private SSH clones require separately configured host keys and credentials on the syncing host. The job only fast-forwards clean clones; it will stop on local changes or divergent branches. It does not initialize submodules or Git LFS.
 
-The indexer gets source repositories read-only. It stages a sanitized source copy and excludes symlinks, Git metadata, dependency/build folders, `.env*`, keys, and common credential filenames. Graphify performs code-only AST extraction without LLM calls. Review code for embedded secrets before registering it: filename exclusions cannot identify secrets hardcoded inside source code. Large repositories may exceed the job's temporary storage/resource limit; split them or prebuild artifacts on a development machine.
+The indexer gets source repositories read-only. It stages a sanitized source copy and excludes symlinks, Git metadata, dependency/build folders, `.env*`, keys, `.secrets`/`.ssh`/cloud credential folders, and common credential filenames. Graphify performs code-only AST extraction without LLM calls. Review code for embedded secrets before registering it: filename exclusions cannot identify secrets hardcoded inside source code. Large repositories may exceed the job's temporary storage/resource limit; split them or prebuild artifacts on a development machine.
 
 Each successful index publishes `graph.json` atomically and records its SHA-256, source commit (or an explicit unknown/packed-ref marker), timestamp, and Graphify version. Graphify reuses eligible cached extraction output where its own incremental rules permit. The sanitized temporary root can cause full re-extraction; no incremental speedup is promised. Retrieval reports freshness so stale indexes can be recognized.
 

@@ -125,12 +125,31 @@ def create_app(data: Path | None = None, config: Path | None = None, credentials
         return {"sources": [hit["source"] for hit in result], **bounded(result, token_budget, maximum)}
 
     @mcp.tool()
-    async def note_read(project: str, path: str, ctx: Context, token_budget: int = 2000) -> dict:
-        """Read a project Markdown note and get its conflict-detection hash."""
+    async def note_read(project: str, path: str, ctx: Context, token_budget: int = 2000,
+                        offset: int = 0) -> dict:
+        """Read a bounded page and whole-note hash. Follow next_offset until null.
+
+        Offsets count Unicode characters, not bytes. Read all pages before editing.
+        """
         authorize(ctx, project)
         note = await asyncio.to_thread(store.read_note, project, path)
+        content = note["content"]
+        if offset < 0 or offset > len(content):
+            raise ValueError("Offset is outside the note")
+        budget = min(maximum, max(128, token_budget))
+        # Binary search keeps valid JSON/Unicode while respecting the byte budget.
+        low, high = 0, min(len(content) - offset, budget)
+        while low < high:
+            middle = (low + high + 1) // 2
+            if len(json.dumps(content[offset:offset + middle], ensure_ascii=False).encode()) <= budget:
+                low = middle
+            else:
+                high = middle - 1
+        end = offset + low
         return {"source": note["source"], "sha256": note["sha256"],
-                **bounded(note["content"], token_budget, maximum)}
+                "offset": offset, "next_offset": end if end < len(content) else None,
+                "total_characters": len(content), "data": content[offset:end],
+                "truncated": end < len(content)}
 
     @mcp.tool()
     async def note_write(project: str, name: str, content: str, ctx: Context,
