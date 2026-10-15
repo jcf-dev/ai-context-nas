@@ -100,6 +100,8 @@ services:
       - ${DATA_ROOT:-./runtime}:/data
       - ./config:/config:ro
       - ./backups:/backups
+      # Archive the active host configuration, including NAS IP/TLS fixes.
+      - ./gateway/Caddyfile:/app/gateway/Caddyfile:ro
     network_mode: none
     mem_limit: 512m
     cpus: 1.0
