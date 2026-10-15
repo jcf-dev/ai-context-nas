@@ -8,7 +8,7 @@ Verified October 15, 2026 using official source, published package metadata, rel
 | ICM | 0.11.4; source `5f402434919e514109a95c6cf504427fbcef851f`; Cargo.lock | `icm --db PATH --no-embeddings store --topic TOPIC --content CONTENT --importance medium` and `recall QUERY --limit N --format json`; separate local SQLite DB per project. |
 | MCP Python SDK | `mcp==1.30.0` | FastMCP Streamable HTTP, stateless JSON responses at `/mcp`; gateway adds bearer authentication and project access checks. Version 2.x exists but is deliberately outside this tested pin. |
 | Obsidian | Desktop application; no server image/version assumed | Standard Markdown vault on authenticated SMB; confined gateway tools for agents. |
-| Caddy | 2.10.2 manifest digest in Compose | Private CA HTTPS, no public ACME or admin port. |
+| Caddy | 2.10.2 manifest digest in gateway/Caddy.Dockerfile | Private CA HTTPS, no public ACME or admin port. Unneeded executable file capability is removed to support ALL capabilities dropped on port 8443. |
 | Python/Rust | Python 3.12.14 and Rust 1.96.0 manifest digests in Dockerfile | Python dependencies locked with wheel hashes; ICM built from pinned source with only backend-sqlite. |
 
 ## Graphify evidence
@@ -34,4 +34,4 @@ Verified October 15, 2026 using official source, published package metadata, rel
 - [SQLite online backup](https://www.sqlite.org/backup.html) and [Python sqlite3 backup](https://docs.python.org/3.12/library/sqlite3.html#sqlite3.Connection.backup).
 - [Obsidian](https://obsidian.md/) is a desktop Markdown application; it does not require an invented server container. See [client evidence](clients.md) for SMB and agent setup sources.
 
-Image manifests were inspected through Docker's registry client without a local engine; this verified that the pinned manifests exist, not that the resulting images build or run successfully on the NAS.
+Image manifests were inspected through Docker's registry client without a local engine. Linux AMD64 builds, container startup, private HTTPS, source-built ICM, and restart persistence then passed in [GitHub CI](https://github.com/jcf-dev/ai-context-nas/actions/runs/38746418888). This does not establish NAS-specific or ARM64 compatibility.
