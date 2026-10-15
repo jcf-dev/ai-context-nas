@@ -13,6 +13,7 @@ RUN pip install --no-cache-dir --require-hashes -r requirements.lock \
 COPY --from=icm /build/target/release/icm /usr/local/bin/icm
 COPY gateway /app/gateway
 COPY scripts /app/scripts
+COPY compose.yaml .env.example pyproject.toml uv.lock /app/
 ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1 HOME=/tmp
 USER 10001:10001
 EXPOSE 8080

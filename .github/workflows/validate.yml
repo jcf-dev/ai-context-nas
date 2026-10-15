@@ -38,6 +38,11 @@ jobs:
           python -m scripts.manage client --name ci --projects smoke --write
           docker compose up --no-build -d --wait --wait-timeout 90
           curl --fail --silent --show-error --noproxy '*' --cacert runtime/tls/caddy/pki/authorities/local/root.crt --resolve context.nas.internal:8443:127.0.0.1 https://context.nas.internal:8443/health
+          echo '127.0.0.1 context.nas.internal' | sudo tee -a /etc/hosts
+          python -m scripts.smoke --project smoke --ca runtime/tls/caddy/pki/authorities/local/root.crt --credentials .secrets/ci.env
+          docker compose restart gateway
+          docker compose up --no-build -d --wait --wait-timeout 60
+          python -m scripts.smoke --project smoke --ca runtime/tls/caddy/pki/authorities/local/root.crt --credentials .secrets/ci.env --recall-only
       - name: Container diagnostics and cleanup
         if: always()
         run: |

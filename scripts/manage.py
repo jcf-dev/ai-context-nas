@@ -53,6 +53,8 @@ def initialize(root: Path, data: Path, uid: int, gid: int):
         shutil.copytree(templates, data / "obsidian" / "Templates", dirs_exist_ok=True)
     secret = root / ".secrets"
     secret.mkdir(mode=0o700, exist_ok=True)
+    backups = root / "backups"
+    backups.mkdir(mode=0o700, exist_ok=True)
     if not (secret / "clients.json").exists():
         atomic_write(secret / "clients.json", b'{"clients": []}\n')
     if not (root / ".env").exists():
@@ -62,7 +64,7 @@ def initialize(root: Path, data: Path, uid: int, gid: int):
         content = content.replace("PUID=10001", f"PUID={uid}").replace("PGID=10001", f"PGID={gid}")
         atomic_write(root / ".env", content.encode())
     if os.name == "posix" and os.geteuid() == 0:
-        for path in [data, *data.rglob("*"), secret, *secret.iterdir()]:
+        for path in [data, *data.rglob("*"), secret, *secret.iterdir(), backups]:
             if not path.is_symlink():
                 os.chown(path, uid, gid)
     for path in secret.iterdir():
@@ -217,6 +219,14 @@ def backup(config: Path, data: Path, backups: Path, keep: int):
                     raise ValueError("Backup source contains symlinks; resolve them first")
                 shutil.copytree(data / folder, stage / folder, symlinks=False)
         shutil.copytree(config, stage / "config")
+        deployment = Path(__file__).resolve().parent.parent
+        for name in ("compose.yaml", ".env.example", "pyproject.toml", "requirements.lock", "uv.lock",
+                     "gateway/Caddyfile", "gateway/Dockerfile"):
+            template = deployment / name
+            if template.is_file():
+                target = stage / "deployment" / name
+                target.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(template, target)
         for db in (data / "icm").glob("*/memory.db"):
             target = stage / "icm" / slug(db.parent.name) / "memory.db"
             target.parent.mkdir(parents=True, exist_ok=True)
