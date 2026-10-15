@@ -61,7 +61,7 @@ services:
       - ./gateway/Caddyfile:/etc/caddy/Caddyfile:ro
       - ${DATA_ROOT:-./runtime}/tls:/data
     tmpfs: ["/config:rw,noexec,nosuid,size=16m,mode=1777"]
-    networks: [context]
+    networks: [context, edge]
     depends_on:
       gateway: {condition: service_healthy}
     mem_limit: 128m
@@ -98,6 +98,7 @@ services:
     cpus: 1.0
 networks:
   context: {internal: true}
+  edge: {}
 secrets:
   clients:
     file: ./.secrets/clients.json
