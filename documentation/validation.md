@@ -1,6 +1,6 @@
 # Validation and deployment report
 
-Prepared October 15, 2026 (Asia/Manila). **The NAS has not been deployed or modified.** The Windows UGREEN desktop app is a NAS management client, not the container host.
+Prepared October 15, 2026 (Asia/Manila). **NAS runtime deployment is pending publication of the reviewed slim and standard images.** A dedicated deployment folder and an unstarted/failed project entry have been prepared. Existing NAS services remain untouched. The Windows UGREEN desktop app is a NAS management client, not the container host.
 
 ## Environment actually observed
 
@@ -9,16 +9,21 @@ Prepared October 15, 2026 (Asia/Manila). **The NAS has not been deployed or modi
 | Workstation | Windows 11 Pro, build 10.0.26300, AMD64 Docker client |
 | NAS connectivity evidence | SMB mappings X/Y/Z to shares on 10.10.10.2 |
 | NAS SSH | Connection attempt to 10.10.10.2 refused; no authenticated session available |
-| Local Docker | Client 29.8.2 and Compose 5.5.1 installed; Linux engine pipe absent |
-| GitHub | CLI authenticated as jcf-dev; private publication requested |
-| NAS model/CPU/RAM/UGOS/Docker/storage paths | Not inspected; unknown |
-| Existing NAS containers, volumes, ports, proxy/VPN | Not inspected; unknown |
+| Local Docker | Client 29.8.2, Compose 5.5.1; Docker Desktop Linux engine running |
+| GitHub | Public `jcf-dev/ai-context-nas`, MIT license, contributions welcome |
+| NAS | UGREEN DH4300 Plus, RK3588C ARM64, 8 GB RAM, UGOS 1.20.0.0142 |
+| NAS Docker/storage | Docker Projects UI available; writable dedicated folder in docker share; Linux share path not assumed |
+| Existing NAS containers | Existing arr-stack (six running) and cloudflared (one running) inspected; unchanged |
 
-No NAS credentials, volume paths, model, or installed software versions were inferred from Windows. No NAS folder was selected or created through SMB.
+NAS model and system details were read from the authenticated UGOS interface in Chrome. The dedicated `docker/ai-context-nas` folder was prepared through SMB. No NAS password, bearer token, live database, or TLS private key is committed.
 
 ## Checks completed locally
 
-`python -m pytest -q`: **7 passed**, 2.12 seconds in the recorded run. Tests used Graphify 0.9.91 and the official ICM 0.11.4 Windows AMD64 binary after SHA-256 verification against release checksums. One upstream Starlette warning says its HTTPX TestClient integration is deprecated; no test failed because of it.
+`python -m pytest -q`: **8 passed**, 2.26 seconds in the reviewed release run. Tests used Graphify 0.9.91 and the official ICM 0.11.4 Windows AMD64 binary after SHA-256 verification against release checksums. One upstream Starlette warning says its HTTPX TestClient integration is deprecated; no test failed because of it. New coverage includes complete bounded Unicode note pagination, case-folded search excerpts, and hidden credential exclusion during real Graphify extraction.
+
+The [Astra reviews](astra-review.md) identified and verified fixes for indexing lock permissions, hidden credential ingestion, large-file checksum memory use, and long-note retrieval. Follow-up fixes align edition build targets/tags and Unicode search offsets. No remaining concrete defect was found in the reviewed changes; container acceptance is separately required.
+
+A release slim container successfully backed up and restored a 96 MiB Obsidian attachment with a **64 MiB container memory limit**, no network, and a read-only root filesystem. Streaming SHA-256 of original and restored data matched. AMD64 unpacked image sizes were 270,381,296 bytes (slim), 634,725,550 bytes (standard), and 143,165,454 bytes (TLS). Registry transfer sizes differ.
 
 | Requirement | Actual local evidence | NAS acceptance still needed |
 |---|---|---|
