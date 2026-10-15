@@ -1,0 +1,35 @@
+{
+  "version": "0.1.0",
+  "application_revision": "c11f1aaa084b36487f418eb733d4abb36067a529",
+  "native_arm64_validation": "https://github.com/jcf-dev/ai-context-nas/actions/runs/38751974466",
+  "native_amd64_validation": "https://github.com/jcf-dev/ai-context-nas/actions/runs/38751971202",
+  "images": [
+    {
+      "image": "joweenflores/ai-context-nas",
+      "tag": "0.1.0-slim",
+      "digest": "sha256:c28586500a1189758fe227b7131196dfa303b461e3a87c651b40bbce260f1a98",
+      "platforms": {
+        "amd64": "sha256:b9a18162d29c853241c9af22b4ee3443d765036748033c51e7cf94183b63d909",
+        "arm64": "sha256:74ad3a3b7acd6368fb2b5dfff9ad9c3aab238c9587bdeb81c88cfc1290f3fcf2"
+      }
+    },
+    {
+      "image": "joweenflores/ai-context-nas",
+      "tag": "0.1.0-standard",
+      "digest": "sha256:35d712d0aea46789bee7fdb921534e0a58f59b39b9f6d4fcc468fc3eff8cec67",
+      "platforms": {
+        "amd64": "sha256:daed07484cebc0503a2d62dc95347a155b80e7394c7241d5274b089999c38d00",
+        "arm64": "sha256:264082683e41df0cd67d03f836d1ac32e9684aee773253f53a55299983351d94"
+      }
+    },
+    {
+      "image": "joweenflores/ai-context-tls",
+      "tag": "0.1.0",
+      "digest": "sha256:e9a31ab3465454c8c8707fff0866a192cbc7b312e783c802f063356111966959",
+      "platforms": {
+        "amd64": "sha256:166880c70b64bb13f9f0c5eeb10eaf9ec8caeac7ccdb677ebded996073178470",
+        "arm64": "sha256:974d1d0e2bf8313d9f69df6f01df4642f4cc418d92417a9bbef2d108746e749f"
+      }
+    }
+  ]
+}

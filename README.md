@@ -31,7 +31,7 @@ In the UGREEN Windows app, connect to your NAS and open its settings and Docker 
 
 If SSH is enabled for your account, run `sh scripts/discover.sh` **on the NAS**. It is read-only. Confirm Compose v2 or newer and Linux AMD64 or ARM64. Obtain the local path of a **dedicated** shared folder from UGOS storage/share details or the NAS terminal; do not assume `/volume1`. Existing reverse proxies, VPNs, and port conflicts must be reviewed before enabling access. Never replace an existing project called `ai-context` without inspecting it.
 
-The machine used to prepare this repo had SMB mappings to `10.10.10.2`; an SSH attempt there was refused. Its NAS model, UGOS version, storage paths, and containers could not be inspected. Do not infer them from the Windows hardware.
+The NAS inspected through UGOS in Chrome is a DH4300 Plus with RK3588C ARM64, 8 GB RAM, and UGOS 1.20.0.0142. SSH was refused; deployment uses the authenticated Docker Projects interface and a dedicated folder in the writable Docker share. Existing arr-stack and cloudflared projects are left untouched. See [validation](documentation/validation.md) for the current acceptance state. Other installations must discover their own paths, ports, and account ownership.
 
 ## 2. Prepare the project folder
 

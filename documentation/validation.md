@@ -50,6 +50,14 @@ An additional Windows test ran the actual gateway behind HTTPS on a loopback TCP
 
 ## Linux containers actually verified
 
+Release application revision `c11f1aa` passed native [ARM64 acceptance](https://github.com/jcf-dev/ai-context-nas/actions/runs/38751974466) and [AMD64 acceptance](https://github.com/jcf-dev/ai-context-nas/actions/runs/38751971202). Each ran all eight tests, built both editions, executed the real read-only-source Compose indexer with credential-directory exclusion, verified private HTTPS/MCP, rejected invalid tokens, tested notes and source-built ICM, checked restart persistence, switched to the standard gateway, and completed maintenance-container backup and staging restore.
+
+Public Docker Hub release tags are [`joweenflores/ai-context-nas:0.1.0-slim`](https://hub.docker.com/r/joweenflores/ai-context-nas/tags?name=0.1.0-slim), `0.1.0-standard`, and [`joweenflores/ai-context-tls:0.1.0`](https://hub.docker.com/r/joweenflores/ai-context-tls). Each supports Linux AMD64 and ARM64. Moving aliases `slim` and `standard` are also available. Exact index and architecture digests are in [images.json](images.json). An anonymous manifest read verified public access.
+
+ARM64 registry layers were recompressed with gzip after the native build artifact was loaded. The image configuration digests, which include the filesystem layer hashes, remained identical to the tested artifacts. ARM64 download layer totals are 66,775,190 bytes (slim), 135,399,446 bytes (standard), and 35,954,966 bytes (TLS). Unpacked ARM64 image sizes are 210,805,783 bytes (slim) and 488,998,565 bytes (standard). The NAS deployment selects the published slim and TLS images by fixed index digest; no NAS source build is required.
+
+Earlier validation, retained as historical evidence:
+
 [GitHub Actions run 38746418888](https://github.com/jcf-dev/ai-context-nas/actions/runs/38746418888) completed **successfully** against application revision `e1bbcc9` on an Ubuntu 24.04 AMD64 runner. It installed hash-locked Python dependencies, ran all seven application/upstream integration tests, validated Compose, compiled the pinned minimal ICM source, built both images, and started the Compose stack with its non-root users, dropped capabilities, read-only root filesystems, mounts, and private gateway network.
 
 The same run verified private HTTPS with Caddy's actual CA certificate, MCP initialization/tool discovery, invalid-token rejection, note creation/read, source-built ICM store/recall, and recall of the same note and memory after restarting the gateway container. This is Linux container verification on a GitHub runner, not installation on the NAS and not a claim that Claude/Codex/Hermes have been configured on your machines.
