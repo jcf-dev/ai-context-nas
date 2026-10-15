@@ -1,69 +1,65 @@
-# Validation and deployment report
+# Validation and NAS deployment report
 
-Prepared October 15, 2026 (Asia/Manila). **NAS runtime deployment is pending publication of the reviewed slim and standard images.** A dedicated deployment folder and an unstarted/failed project entry have been prepared. Existing NAS services remain untouched. The Windows UGREEN desktop app is a NAS management client, not the container host.
+Verified October 15, 2026 (Asia/Manila). The ARM64 NAS runs the published **slim** gateway and private HTTPS proxy. The standard edition is available for indexing. Per-app connections and scheduled backups remain separate acceptance work.
 
-## Environment actually observed
+## Environment observed
 
 | Item | Observation |
-|---|---|
-| Workstation | Windows 11 Pro, build 10.0.26300, AMD64 Docker client |
-| NAS connectivity evidence | SMB mappings X/Y/Z to shares on 10.10.10.2 |
-| NAS SSH | Connection attempt to 10.10.10.2 refused; no authenticated session available |
-| Local Docker | Client 29.8.2, Compose 5.5.1; Docker Desktop Linux engine running |
-| GitHub | Public `jcf-dev/ai-context-nas`, MIT license, contributions welcome |
-| NAS | UGREEN DH4300 Plus, RK3588C ARM64, 8 GB RAM, UGOS 1.20.0.0142 |
-| NAS Docker/storage | Docker Projects UI available; writable dedicated folder in docker share; Linux share path not assumed |
-| Existing NAS containers | Existing arr-stack (six running) and cloudflared (one running) inspected; unchanged |
+| --- | --- |
+| NAS | UGREEN DH4300 Plus; RK3588C ARM64; 8 GB RAM; UGOS 1.20.0.0142 |
+| Deployment | Authenticated Chrome UGOS Docker Projects interface; dedicated `docker/ai-context-nas` shared folder |
+| Runtime | `ai-context-gateway-1` and `ai-context-tls-1`, both running as `1000:10` |
+| Network | HTTPS bound to private `10.10.10.2:8443`; gateway has no published port |
+| Existing services | arr-stack and cloudflared were inspected and left untouched |
+| SSH | Connection refused; no SSH or administrative access was enabled |
+| Workstation | Windows 11 Pro; Docker Desktop Linux engine; Docker CLI 29.8.2 and Compose 5.5.1 |
+| Publication | Public GitHub `jcf-dev/ai-context-nas`, MIT, contribution guide; public Docker Hub `joweenflores` images |
 
-NAS model and system details were read from the authenticated UGOS interface in Chrome. The dedicated `docker/ai-context-nas` folder was prepared through SMB. No NAS password, bearer token, live database, or TLS private key is committed.
+NAS details came from UGOS, not assumptions about Windows. No password, live token, database, vault content, or TLS private key is committed.
 
-## Checks completed locally
+## Public images and native acceptance
 
-`python -m pytest -q`: **8 passed**, 2.26 seconds in the reviewed release run. Tests used Graphify 0.9.91 and the official ICM 0.11.4 Windows AMD64 binary after SHA-256 verification against release checksums. One upstream Starlette warning says its HTTPX TestClient integration is deprecated; no test failed because of it. New coverage includes complete bounded Unicode note pagination, case-folded search excerpts, and hidden credential exclusion during real Graphify extraction.
+Both editions and the TLS companion support Linux AMD64 and ARM64. [images.json](images.json) records the exact published index and architecture digests. NAS deployment uses fixed slim and TLS index digests.
 
-The [Astra reviews](astra-review.md) identified and verified fixes for indexing lock permissions, hidden credential ingestion, large-file checksum memory use, and long-note retrieval. Follow-up fixes align edition build targets/tags and Unicode search offsets. No remaining concrete defect was found in the reviewed changes; container acceptance is separately required.
+| Image tag | Purpose | ARM64 download layer bytes | ARM64 unpacked image bytes |
+| --- | --- | ---: | ---: |
+| `joweenflores/ai-context-nas:0.1.0-slim` | Six MCP tools, ICM, existing graphs, Markdown, maintenance | 66,775,190 | 210,805,783 |
+| `joweenflores/ai-context-nas:0.1.0-standard` | Slim plus Graphify AST parsers and Git | 135,399,446 | 488,998,565 |
+| `joweenflores/ai-context-tls:0.1.0` | Non-root Caddy HTTPS | 35,954,966 | — |
 
-A release slim container successfully backed up and restored a 96 MiB Obsidian attachment with a **64 MiB container memory limit**, no network, and a read-only root filesystem. Streaming SHA-256 of original and restored data matched. AMD64 unpacked image sizes were 270,381,296 bytes (slim), 634,725,550 bytes (standard), and 143,165,454 bytes (TLS). Registry transfer sizes differ.
+Aliases `slim` and `standard` point to the corresponding editions. Registry access was verified without login. ARM64 layers were gzip-compressed after loading the native build bundle; image configuration digests, including filesystem layer hashes, remained identical to the tested artifacts.
 
-| Requirement | Actual local evidence | NAS acceptance still needed |
-|---|---|---|
-| Graph indexing/symbols | Real AST extraction of a Python fixture; symbol found | Real registered repository on NAS |
-| Dependency traversal | Caller/helper nodes and connecting edges returned | Representative production dependency queries |
-| Notes | HTTP MCP create/search; direct read/update with SHA conflicts and human-write rejection | Obsidian Desktop SMB and remote agent use |
-| Memory | Real ICM write/keyword recall; repeated content returns same ID | Container/NAS persistence |
-| Restart persistence | New HTTP gateway instance recalls the prior database | Actual container and NAS restarts |
-| Authentication | Missing/invalid bearer returns 401 | Remote HTTPS and firewall |
-| Authorization | Cross-project requests and reader writes rejected | Tokens configured for all intended clients |
-| Project isolation | Separate databases; beta cannot recall alpha memory | Multi-client concurrent workloads |
-| Index refresh | Changed fixture reindexed; new symbol found, previous symbol absent | Real repository synchronization schedule |
-| Agent connectivity | Actual MCP HTTP tool requests using in-process ASGI transport | Claude/Codex/Hermes from separate devices |
-| Failure recovery | Missing binary fails; valid adapter resumes recall | Stop/start container and service health |
-| Backup restoration | SQLite Backup API snapshot, manifest checks, integrity check, restored ICM recall | Off-device copy and NAS recovery rehearsal |
-| Input confinement | Traversal rejection, 64 KiB request limit, note ownership/hash checks | NAS SMB ACL review |
-| Concurrent updates | Two HTTP clients updating the same note hash produce one success and one conflict | Human SMB editor coordination |
-| Compose | `docker compose --env-file .env.example config --quiet` passed | Installed UGOS Compose/UI behavior |
-| Image inputs | Manifest digests exist; Python lock resolves/installs on Windows and Linux; AMD64 images build and start in CI | NAS-specific behavior; ARM64 separately |
+Release application revision `c11f1aa` passed native [ARM64 acceptance](https://github.com/jcf-dev/ai-context-nas/actions/runs/38751974466) and [AMD64 acceptance](https://github.com/jcf-dev/ai-context-nas/actions/runs/38751971202). Both ran eight tests, source-built minimal ICM, built both editions, executed the actual Compose indexer with read-only repositories and hidden-credential exclusion, and verified HTTPS, authentication, note/ICM operations, restart persistence, standard runtime behavior, and maintenance-container backup/restore.
 
-Gateway/ICM tests invoke the actual software, not substitutes for the storage engine. In-process ASGI transport is not evidence of network reachability or TLS. The Windows memory tests use the upstream Windows release. Linux CI additionally builds ICM from pinned source with embeddings disabled and exercises that executable in the running gateway container.
+[Astra reviewed the code and implementation](astra-review.md), then reviewed the fixes. Initial fixes covered operator lock permissions, secret-folder ingestion, backup checksum memory use, and long-note retrieval. Follow-up fixes align image tags/build targets, Unicode search offsets, and active TLS configuration backup. No remaining concrete defect was found in the reviewed changes.
 
-An additional Windows test ran the actual gateway behind HTTPS on a loopback TCP port with a generated trusted test certificate. The shipped `scripts/smoke.py` passed initialization, six-tool discovery, invalid-token rejection, note creation/read, and ICM store/recall, then passed recall again after stopping and starting a new gateway instance. This was real TLS/socket traffic with the verified Windows ICM binary, separate from the in-process tests. It is not evidence of remote NAS reachability. Observed server-side ICM store latency was 203 ms for the initial fixture write; recalls took 31 ms and 47 ms. These individual Windows fixture observations are not NAS performance estimates or a benchmark.
+A slim container backed up and restored a 96 MiB attachment under a **64 MiB container memory limit**, with no network and a read-only root filesystem. Streaming digests matched. Local Windows tests also passed **8/8** with real Graphify and checksum-verified ICM; Starlette emitted one upstream TestClient deprecation warning.
 
-## Linux containers actually verified
+## Actual NAS functional acceptance
 
-Release application revision `c11f1aa` passed native [ARM64 acceptance](https://github.com/jcf-dev/ai-context-nas/actions/runs/38751974466) and [AMD64 acceptance](https://github.com/jcf-dev/ai-context-nas/actions/runs/38751971202). Each ran all eight tests, built both editions, executed the real read-only-source Compose indexer with credential-directory exclusion, verified private HTTPS/MCP, rejected invalid tokens, tested notes and source-built ICM, checked restart persistence, switched to the standard gateway, and completed maintenance-container backup and staging restore.
+| Check | Actual result |
+| --- | --- |
+| Startup | Both fixed-digest ARM64 images pulled from Docker Hub and are running |
+| HTTPS | Windows connected to `https://10.10.10.2:8443/mcp` using the NAS public CA, with certificate validation enabled |
+| MCP | Initialization and discovery of all six tools passed |
+| Authentication | Invalid bearer token rejected with HTTP 401 |
+| Project allowlist | Request for an unauthorized project rejected |
+| Code graph | Imported real Graphify extraction: 123 nodes, 319 edges; remote `read_note` symbol query returned graph context |
+| Notes | Agent note created and read through remote MCP |
+| ICM | Verified fixture stored and recalled through the source-built ARM64 ICM executable |
+| Container restart | Project stopped and started through UGOS; note and memory recalled afterward |
+| Backup/recovery | Closed NAS data snapshot backed up, staged restore passed checksums and SQLite integrity, restored ICM memory recalled |
+| Off-device copy | Backup retained privately on this Windows PC, outside the repository |
 
-Public Docker Hub release tags are [`joweenflores/ai-context-nas:0.1.0-slim`](https://hub.docker.com/r/joweenflores/ai-context-nas/tags?name=0.1.0-slim), `0.1.0-standard`, and [`joweenflores/ai-context-tls:0.1.0`](https://hub.docker.com/r/joweenflores/ai-context-tls). Each supports Linux AMD64 and ARM64. Moving aliases `slim` and `standard` are also available. Exact index and architecture digests are in [images.json](images.json). An anonymous manifest read verified public access.
+Direct-IP clients initially failed TLS because they omitted SNI. `default_sni {$CONTEXT_HOST}` fixes certificate selection without disabling validation. Caddy validated the configuration, Astra reviewed it, and the actual NAS IP HTTPS checks passed afterward. Workflow coverage now includes direct-IP HTTPS startup and readiness retries. Maintenance mounts the active host Caddyfile so restored deployment templates retain that fix. Published image digests are unchanged: the active proxy configuration is a host bind mount.
 
-ARM64 registry layers were recompressed with gzip after the native build artifact was loaded. The image configuration digests, which include the filesystem layer hashes, remained identical to the tested artifacts. ARM64 download layer totals are 66,775,190 bytes (slim), 135,399,446 bytes (standard), and 35,954,966 bytes (TLS). Unpacked ARM64 image sizes are 210,805,783 bytes (slim) and 488,998,565 bytes (standard). The NAS deployment selects the published slim and TLS images by fixed index digest; no NAS source build is required.
+The stopped-snapshot recovery check used `context-20261015T145452361632Z.tar.gz` (91,943 bytes), stored in the dedicated NAS backups folder, with an off-device copy. This Windows SQLite build cannot open UNC file URIs, so the **stopped** NAS files were copied locally before using SQLite's backup API. Live network-mounted SQLite access was not used. The active TLS configuration was included; live data was not replaced during restore. Client credentials still require separate protected retention or reissuance, as documented.
 
-Earlier validation, retained as historical evidence:
+Observed after restart: gateway about **43.8 MB**, TLS about **12.9 MB** in UGOS, with momentary CPU readings around 0–1%. Five sequential Windows-to-NAS HTTPS note reads took 31.5, 31.3, 31.4, 30.1, and 29.7 ms (median 31.3 ms). These are small idle/fixture observations, not sustained-load, capacity, or token-savings benchmarks.
 
-[GitHub Actions run 38746418888](https://github.com/jcf-dev/ai-context-nas/actions/runs/38746418888) completed **successfully** against application revision `e1bbcc9` on an Ubuntu 24.04 AMD64 runner. It installed hash-locked Python dependencies, ran all seven application/upstream integration tests, validated Compose, compiled the pinned minimal ICM source, built both images, and started the Compose stack with its non-root users, dropped capabilities, read-only root filesystems, mounts, and private gateway network.
+## Remaining acceptance
 
-The same run verified private HTTPS with Caddy's actual CA certificate, MCP initialization/tool discovery, invalid-token rejection, note creation/read, source-built ICM store/recall, and recall of the same note and memory after restarting the gateway container. This is Linux container verification on a GitHub runner, not installation on the NAS and not a claim that Claude/Codex/Hermes have been configured on your machines.
-
-## Resource measurements and remaining work
-
-The recorded complete local test run took 2.12 seconds. This is fixture test duration, **not retrieval latency or a NAS speed estimate**. NAS CPU, RAM, storage use, remote latency, concurrency, and improvement in token usage were not measured. Compose limits are configuration ceilings, not measured consumption.
-
-Linux AMD64 build/startup/HTTPS/restart checks passed as linked above. ARM64 builds, NAS startup logs, client HTTPS trust, actual agent connections, shared-folder ownership, firewall rules, scheduled backups, NAS restart persistence, and actual NAS recovery remain deployment acceptance tasks. Follow README steps and record their real results here.
+- Configure and test the intended Claude Code, Codex CLI, and Hermes client applications with their own scoped tokens and CA trust. A generic remote MCP client has been verified; those applications have not been connected.
+- Install a NAS-native backup schedule and test its unattended failure handling. The manual stopped snapshot and restore succeeded; no scheduler is installed.
+- Rehearse a NAS reboot, off-device disaster recovery, shared-folder ACL review, and representative multi-client load. Only this project's container stop/start has been tested.
+- Register the user's actual repositories and measure retrieval usefulness. The initial registered project is this deployment repository; no NAS-wide ingestion was performed.

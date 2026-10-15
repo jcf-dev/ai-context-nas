@@ -2,7 +2,7 @@
 
 Private, project-scoped context for Claude Code, Codex CLI, Hermes, and other MCP clients. The UGREEN app on Windows manages the **separate NAS**; the Linux containers run on the NAS.
 
-**Status:** locally tested deployment project. NAS installation, actual NAS resource measurements, and remote client acceptance remain pending. See [validation](documentation/validation.md). Do not treat the initial repository publication as a completed NAS deployment.
+**Status:** slim gateway and private HTTPS are running on the ARM64 UGREEN NAS using published Docker Hub images. Live Windows-to-NAS MCP, graph retrieval, access checks, note/memory persistence after a container stop/start, and a stopped-snapshot backup/restore passed. [Astra reviewed the implementation](documentation/astra-review.md). Per-app client setup, automatic backup scheduling, and a NAS reboot test remain. See [validation](documentation/validation.md).
 
 ## Container editions
 
@@ -76,9 +76,10 @@ The default bind address is loopback. Deliberately set the NAS's private IP afte
 
 ## 3. Build and start using UGOS Docker Projects
 
-1. Copy the project folder to the dedicated NAS share, including `.env`, `.secrets`, `config`, and initialized `runtime` folders. Transfer source files and `requirements.lock`; exclude your Windows `.venv`, caches, and `.git` if they are not needed there.
-2. Open **Docker → Projects** in the UGREEN app/NAS interface. Choose the folder and import `compose.yaml`. Review the generated mounts and private port binding. UGOS menu labels vary by version; this flow has not been tested against your installed version.
-3. Before building or starting, run this in a NAS terminal or SSH session in the project folder:
+1. Copy the project folder to the dedicated NAS share, including `.env`, `.secrets`, `config`, and initialized `runtime` folders. Exclude your Windows `.venv`, caches, and `.git`.
+2. For UGOS's browser editor, use a rendered configuration containing the two runtime services, relative NAS folder mounts, explicit NAS UID/GID and private IP, and published image digests from [images.json](documentation/images.json). Omit service `build` entries and the unused `x-runtime` extension; one-shot operations stay in the source Compose file. Do not put raw bearer tokens in the editor.
+3. Open **Docker → Project** in Chrome, select the dedicated project folder, and import or paste that deployment configuration. **Redeploy → Pull the latest image → Deploy** was verified on UGOS 1.20.0.0142. Confirm both gateway and TLS are running, then perform the remote checks below. The project uses two continuous containers; standard indexing remains a separate operation.
+4. When NAS terminal/SSH access is available, the equivalent source-build workflow is:
 
    ```sh
    docker compose config --quiet
@@ -89,8 +90,7 @@ The default bind address is loopback. Deliberately set the NAS's private IP afte
    sh scripts/health-check.sh
    ```
 
-4. If your UGOS Project interface supports local Dockerfile builds and Compose secrets, it can manage the same stack after validation. If it only accepts prebuilt images or ignores profiles/secrets, perform the initial build/start using NAS Compose. Do not remove authentication or substitute an invented image to bypass a UI limitation.
-5. Gateway should be healthy, and Caddy should start after it. An empty/invalid credentials file intentionally prevents startup. There is no claim of application readiness until the functional checks below pass.
+5. Gateway should be healthy, and Caddy starts after it. An empty/invalid credentials file intentionally prevents startup. Actual readiness requires the functional checks below. The tested GUI deployment preserved the Compose secret mount and all runtime restrictions.
 
 Building ICM from locked Rust source can temporarily require substantially more RAM and storage than running the stack. Build once on a compatible machine if the NAS cannot handle it, then transfer the built image using `docker save`/`docker load`. Test ARM64 natively before relying on it; multi-architecture base images do not prove every dependency builds there.
 
