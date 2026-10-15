@@ -32,10 +32,10 @@ def main():
             raise ValueError("MCP JSON-RPC error")
         return value["result"]
 
-    def tool(name, **arguments):
-        value = rpc("tools/call", {"name": name, "arguments": {"project": args.project, **arguments}})
+    def tool(tool_name, **arguments):
+        value = rpc("tools/call", {"name": tool_name, "arguments": {"project": args.project, **arguments}})
         if value.get("isError"):
-            raise ValueError(f"Tool {name} failed")
+            raise ValueError(f"Tool {tool_name} failed")
         return value
 
     rpc("initialize", {"protocolVersion": "2025-06-18", "capabilities": {},
