@@ -5,6 +5,7 @@ from pathlib import Path
 import sqlite3
 import tarfile
 import time
+from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 from starlette.testclient import TestClient
@@ -76,6 +77,20 @@ def test_conflict_detection_and_human_notes(environment):
 def test_read_budget():
     result = bounded("text" * 5000, 128)
     assert result["truncated"] and len(result["preview"].encode()) <= 128
+
+
+def test_concurrent_note_updates_preserve_one_winner(environment):
+    data, config, credentials, token = environment
+    store = ContextStore(data, config)
+    initial = store.write_note("alpha", "concurrent", "initial", None)
+    with TestClient(create_app(data, config, credentials)) as client:
+        def update(content):
+            return rpc(client, token, "note_write", {"project": "alpha", "name": "concurrent",
+                       "content": content, "expected_sha256": initial["sha256"]})
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            results = list(pool.map(update, ["first", "second"]))
+        assert sum(not r.get("isError", False) for r in results) == 1
+        assert sum(r.get("isError", False) for r in results) == 1
 
 
 def test_real_graphify_index_traversal_refresh(environment):

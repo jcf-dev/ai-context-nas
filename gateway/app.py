@@ -108,56 +108,57 @@ def create_app(data: Path | None = None, config: Path | None = None, credentials
         return JSONResponse({"status": "ready", "service": "ai-context"})
 
     @mcp.tool()
-    def graph_query(project: str, query: str, ctx: Context, depth: int = 1,
+    async def graph_query(project: str, query: str, ctx: Context, depth: int = 1,
                     limit: int = 20, token_budget: int = 2000) -> dict:
         """Retrieve Graphify symbols and dependency edges for one allowed project."""
         authorize(ctx, project)
-        result = store.graph_query(project, query, depth, limit)
+        result = await asyncio.to_thread(store.graph_query, project, query, depth, limit)
         return {"source": result["source"], "freshness": result["freshness"],
                 **bounded(result, token_budget, maximum)}
 
     @mcp.tool()
-    def note_search(project: str, query: str, ctx: Context, limit: int = 5,
+    async def note_search(project: str, query: str, ctx: Context, limit: int = 5,
                     token_budget: int = 2000) -> dict:
         """Find Markdown knowledge within one project; source references included."""
         authorize(ctx, project)
-        result = store.search_notes(project, query, limit)
+        result = await asyncio.to_thread(store.search_notes, project, query, limit)
         return {"sources": [hit["source"] for hit in result], **bounded(result, token_budget, maximum)}
 
     @mcp.tool()
-    def note_read(project: str, path: str, ctx: Context, token_budget: int = 2000) -> dict:
+    async def note_read(project: str, path: str, ctx: Context, token_budget: int = 2000) -> dict:
         """Read a project Markdown note and get its conflict-detection hash."""
         authorize(ctx, project)
-        note = store.read_note(project, path)
+        note = await asyncio.to_thread(store.read_note, project, path)
         return {"source": note["source"], "sha256": note["sha256"],
                 **bounded(note["content"], token_budget, maximum)}
 
     @mcp.tool()
-    def note_write(project: str, name: str, content: str, ctx: Context,
+    async def note_write(project: str, name: str, content: str, ctx: Context,
                    expected_sha256: str | None = None) -> dict:
         """Create/update an agent-owned note. Human-authored notes need a human editor.
 
         Updates require the exact SHA-256 returned by note_read. Name is a slug.
         """
         authorize(ctx, project, write=True)
-        note = store.write_note(project, name, content, expected_sha256)
+        note = await asyncio.to_thread(store.write_note, project, name, content, expected_sha256)
         return {"source": note["source"], "sha256": note["sha256"]}
 
     @mcp.tool()
-    def memory_recall(project: str, query: str, ctx: Context, limit: int = 5,
+    async def memory_recall(project: str, query: str, ctx: Context, limit: int = 5,
                       token_budget: int = 2000) -> dict:
         """Recall project-specific ICM memory using keywords, without embeddings."""
         authorize(ctx, project)
-        return {"source": f"icm://{project}", **bounded(store.recall(project, query, limit), token_budget, maximum)}
+        result = await asyncio.to_thread(store.recall, project, query, limit)
+        return {"source": f"icm://{project}", **bounded(result, token_budget, maximum)}
 
     @mcp.tool()
-    def memory_store(project: str, topic: str, content: str, verified: bool, ctx: Context) -> dict:
+    async def memory_store(project: str, topic: str, content: str, verified: bool, ctx: Context) -> dict:
         """Store an explicitly verified outcome. Do not store every conversation.
 
         Current code and active decisions override historical memories.
         """
         authorize(ctx, project, write=True)
-        return store.remember(project, topic, content, verified)
+        return await asyncio.to_thread(store.remember, project, topic, content, verified)
 
     return Gate(mcp.streamable_http_app(), credentials)
 

@@ -69,7 +69,7 @@ The default bind address is loopback. Deliberately set the NAS's private IP afte
 
    ```sh
    docker compose config --quiet
-   docker compose build gateway
+   docker compose build gateway tls
    docker compose up -d gateway tls
    docker compose ps
    docker compose logs --tail 50 gateway tls

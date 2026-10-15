@@ -221,7 +221,7 @@ def backup(config: Path, data: Path, backups: Path, keep: int):
         shutil.copytree(config, stage / "config")
         deployment = Path(__file__).resolve().parent.parent
         for name in ("compose.yaml", ".env.example", "pyproject.toml", "requirements.lock", "uv.lock",
-                     "gateway/Caddyfile", "gateway/Dockerfile"):
+                     "gateway/Caddyfile", "gateway/Dockerfile", "gateway/Caddy.Dockerfile"):
             template = deployment / name
             if template.is_file():
                 target = stage / "deployment" / name

@@ -30,6 +30,7 @@ jobs:
       - name: Build Linux AMD64 image and verify ICM executable
         run: |
           docker build -t ai-context-nas:0.1.0 -f gateway/Dockerfile .
+          docker build -t ai-context-tls:0.1.0 -f gateway/Caddy.Dockerfile .
           docker run --rm --network none ai-context-nas:0.1.0 icm --version
       - name: Start Compose and verify private HTTPS
         run: |
@@ -37,7 +38,7 @@ jobs:
           python -m scripts.manage register --project smoke
           python -m scripts.manage client --name ci --projects smoke --write
           docker compose up --no-build -d --wait --wait-timeout 90
-          curl --fail --silent --show-error --noproxy '*' --cacert runtime/tls/caddy/pki/authorities/local/root.crt --resolve context.nas.internal:8443:127.0.0.1 https://context.nas.internal:8443/health
+          curl --retry 10 --retry-connrefused --retry-delay 1 --fail --silent --show-error --noproxy '*' --cacert runtime/tls/caddy/pki/authorities/local/root.crt --resolve context.nas.internal:8443:127.0.0.1 https://context.nas.internal:8443/health
           echo '127.0.0.1 context.nas.internal' | sudo tee -a /etc/hosts
           python -m scripts.smoke --project smoke --ca runtime/tls/caddy/pki/authorities/local/root.crt --credentials .secrets/ci.env
           docker compose restart gateway

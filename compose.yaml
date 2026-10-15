@@ -42,7 +42,10 @@ services:
       retries: 3
       start_period: 20s
   tls:
-    image: caddy:2.10.2@sha256:c3d7ee5d2b11f9dc54f947f68a734c84e9c9666c92c88a7f30b9cba5da182adb
+    image: ai-context-tls:0.1.0
+    build:
+      context: .
+      dockerfile: gateway/Caddy.Dockerfile
     user: "${PUID:-10001}:${PGID:-10001}"
     restart: unless-stopped
     read_only: true
