@@ -1,0 +1,100 @@
+name: ai-context
+x-runtime: &runtime
+  image: ai-context-nas:0.1.0
+  build:
+    context: .
+    dockerfile: gateway/Dockerfile
+  user: "${PUID:-10001}:${PGID:-10001}"
+  init: true
+  read_only: true
+  cap_drop: [ALL]
+  security_opt: [no-new-privileges:true]
+  tmpfs: [/tmp:rw,noexec,nosuid,size=128m]
+  pids_limit: 128
+  logging:
+    driver: json-file
+    options: {max-size: 10m, max-file: "3"}
+services:
+  gateway:
+    <<: *runtime
+    restart: unless-stopped
+    command: [python, -m, gateway.app]
+    environment:
+      DATA_ROOT: /data
+      CONFIG_ROOT: /config
+      HOME: /tmp
+      MAX_CONTEXT_TOKENS: "${MAX_CONTEXT_TOKENS:-2000}"
+      PYTHONDONTWRITEBYTECODE: "1"
+      ICM_NO_EMBEDDINGS: "1"
+    volumes:
+      - ${DATA_ROOT:-./runtime}/graphs:/data/graphs:ro
+      - ${DATA_ROOT:-./runtime}/icm:/data/icm
+      - ${DATA_ROOT:-./runtime}/obsidian:/data/obsidian
+      - ./config:/config:ro
+    secrets: [clients]
+    networks: [context]
+    mem_limit: 768m
+    cpus: 1.0
+    healthcheck:
+      test: [CMD, python, -m, gateway.health]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+  tls:
+    image: caddy:2.10.2@sha256:c3d7ee5d2b11f9dc54f947f68a734c84e9c9666c92c88a7f30b9cba5da182adb
+    user: "${PUID:-10001}:${PGID:-10001}"
+    restart: unless-stopped
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    environment:
+      CONTEXT_HOST: ${CONTEXT_HOST:-context.nas.internal}
+      XDG_DATA_HOME: /data
+      XDG_CONFIG_HOME: /config
+    ports:
+      - "${BIND_ADDRESS:-127.0.0.1}:${HTTPS_PORT:-8443}:8443"
+    volumes:
+      - ./gateway/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ${DATA_ROOT:-./runtime}/tls:/data
+    tmpfs: [/config:rw,noexec,nosuid,size=16m,mode=1777]
+    networks: [context]
+    depends_on:
+      gateway: {condition: service_healthy}
+    mem_limit: 128m
+    cpus: 0.5
+    pids_limit: 64
+    logging:
+      driver: json-file
+      options: {max-size: 10m, max-file: "3"}
+  indexer:
+    <<: *runtime
+    profiles: [operations]
+    restart: "no"
+    command: [python, -m, scripts.manage, index, --project, example]
+    environment: {DATA_ROOT: /data, CONFIG_ROOT: /config, HOME: /tmp, PYTHONDONTWRITEBYTECODE: "1"}
+    volumes:
+      - ${DATA_ROOT:-./runtime}/graphs:/data/graphs
+      - ${DATA_ROOT:-./runtime}/repositories:/data/repositories:ro
+      - ./config:/config:ro
+    network_mode: none
+    mem_limit: 2g
+    cpus: 2.0
+  maintenance:
+    <<: *runtime
+    profiles: [operations]
+    restart: "no"
+    command: [python, -m, scripts.manage, backup, --destination, /backups]
+    environment: {DATA_ROOT: /data, CONFIG_ROOT: /config, HOME: /tmp, BACKUP_KEEP: "${BACKUP_KEEP:-14}"}
+    volumes:
+      - ${DATA_ROOT:-./runtime}:/data
+      - ./config:/config:ro
+      - ./backups:/backups
+    network_mode: none
+    mem_limit: 512m
+    cpus: 1.0
+networks:
+  context: {internal: true}
+secrets:
+  clients:
+    file: ./.secrets/clients.json

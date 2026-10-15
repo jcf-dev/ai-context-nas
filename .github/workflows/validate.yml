@@ -1,0 +1,33 @@
+name: Validate deployment
+on: [push, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version: '3.12'
+      - name: Install locked dependencies
+        run: |
+          python -m pip install --require-hashes -r requirements.lock
+          python -m pip install pytest==8.4.2
+      - name: Obtain checksum-pinned ICM test binary
+        run: |
+          curl -fLsS https://github.com/rtk-ai/icm/releases/download/icm-v0.11.4/icm-x86_64-unknown-linux-gnu.tar.gz -o /tmp/icm.tar.gz
+          echo '319e619e809cc80e033b56dfb7ec5977ad886d1a13f9db2ab82022a9ecaca376  /tmp/icm.tar.gz' | sha256sum -c -
+          mkdir /tmp/icm
+          tar -xzf /tmp/icm.tar.gz -C /tmp/icm
+          find /tmp/icm -type f -name icm -exec chmod +x {} \;
+          echo "ICM_BINARY=$(find /tmp/icm -type f -name icm | head -1)" >> "$GITHUB_ENV"
+      - name: Application and real upstream integration tests
+        run: python -m pytest -q
+      - name: Validate Compose
+        run: docker compose --env-file .env.example config --quiet
+      - name: Build Linux AMD64 image and verify ICM executable
+        run: |
+          docker build -t ai-context-nas:ci -f gateway/Dockerfile .
+          docker run --rm --network none ai-context-nas:ci icm --version

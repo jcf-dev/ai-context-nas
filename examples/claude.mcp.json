@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "ai_context": {
+      "type": "http",
+      "url": "https://context.nas.internal:8443/mcp",
+      "headers": {
+        "Authorization": "Bearer ${AI_CONTEXT_TOKEN}"
+      }
+    }
+  }
+}

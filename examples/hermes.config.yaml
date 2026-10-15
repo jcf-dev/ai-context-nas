@@ -1,0 +1,10 @@
+# Merge into the active Hermes profile's config.yaml.
+# AI_CONTEXT_TOKEN resolves from that profile's secret scope or process environment.
+mcp_servers:
+  ai_context:
+    url: "https://context.nas.internal:8443/mcp"
+    headers:
+      Authorization: "Bearer ${AI_CONTEXT_TOKEN}"
+    # The gateway serves request/response JSON and does not require a GET stream.
+    skip_preflight: true
+

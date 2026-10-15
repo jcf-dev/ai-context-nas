@@ -1,0 +1,6 @@
+# Merge into ~/.codex/config.toml; do not replace an existing file.
+# Set AI_CONTEXT_TOKEN in the environment of the Codex process.
+[mcp_servers.ai_context]
+url = "https://context.nas.internal:8443/mcp"
+bearer_token_env_var = "AI_CONTEXT_TOKEN"
+
