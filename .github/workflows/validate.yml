@@ -51,6 +51,10 @@ jobs:
           docker compose restart gateway
           docker compose up --no-build -d --wait --wait-timeout 60
           python -m scripts.smoke --project smoke --ca runtime/tls/caddy/pki/authorities/local/root.crt --credentials .secrets/ci.env --recall-only
+          CONTEXT_HOST=127.0.0.1 docker compose up --no-build -d --no-deps tls
+          curl --retry 10 --retry-connrefused --retry-delay 1 --fail --silent --show-error --noproxy '*' --cacert runtime/tls/caddy/pki/authorities/local/root.crt https://127.0.0.1:8443/health
+          python -m scripts.smoke --url https://127.0.0.1:8443/mcp --project smoke --ca runtime/tls/caddy/pki/authorities/local/root.crt --credentials .secrets/ci.env --recall-only
+          docker compose up --no-build -d --no-deps tls
       - name: Verify standard runtime persistence
         run: |
           CONTEXT_VARIANT=standard docker compose up --no-build -d --wait --wait-timeout 90 gateway

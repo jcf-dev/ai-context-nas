@@ -2,6 +2,7 @@
     admin off
     auto_https disable_redirects
     skip_install_trust
+    default_sni {$CONTEXT_HOST}
 }
 https://{$CONTEXT_HOST}:8443 {
     tls internal
