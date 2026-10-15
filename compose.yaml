@@ -9,7 +9,7 @@ x-runtime: &runtime
   read_only: true
   cap_drop: [ALL]
   security_opt: [no-new-privileges:true]
-  tmpfs: [/tmp:rw,noexec,nosuid,size=128m]
+  tmpfs: ["/tmp:rw,noexec,nosuid,size=128m"]
   pids_limit: 128
   logging:
     driver: json-file
@@ -57,7 +57,7 @@ services:
     volumes:
       - ./gateway/Caddyfile:/etc/caddy/Caddyfile:ro
       - ${DATA_ROOT:-./runtime}/tls:/data
-    tmpfs: [/config:rw,noexec,nosuid,size=16m,mode=1777]
+    tmpfs: ["/config:rw,noexec,nosuid,size=16m,mode=1777"]
     networks: [context]
     depends_on:
       gateway: {condition: service_healthy}

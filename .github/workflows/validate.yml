@@ -29,5 +29,17 @@ jobs:
         run: docker compose --env-file .env.example config --quiet
       - name: Build Linux AMD64 image and verify ICM executable
         run: |
-          docker build -t ai-context-nas:ci -f gateway/Dockerfile .
-          docker run --rm --network none ai-context-nas:ci icm --version
+          docker build -t ai-context-nas:0.1.0 -f gateway/Dockerfile .
+          docker run --rm --network none ai-context-nas:0.1.0 icm --version
+      - name: Start Compose and verify private HTTPS
+        run: |
+          python -m scripts.manage init --uid "$(id -u)" --gid "$(id -g)"
+          python -m scripts.manage register --project smoke
+          python -m scripts.manage client --name ci --projects smoke --write
+          docker compose up --no-build -d --wait --wait-timeout 90
+          curl --fail --silent --show-error --noproxy '*' --cacert runtime/tls/caddy/pki/authorities/local/root.crt --resolve context.nas.internal:8443:127.0.0.1 https://context.nas.internal:8443/health
+      - name: Container diagnostics and cleanup
+        if: always()
+        run: |
+          docker compose --env-file .env.example logs --tail 50 || true
+          docker compose --env-file .env.example down || true
